@@ -18,8 +18,11 @@ export class LoginComponent {
   public loginError = signal<string | null>(null);
 
   loginForm = this.fb.group({
-    email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(8)]],
+    email: ['admin@radio.com', [Validators.required, Validators.email]],
+    password: [
+      'unacontraseñasegura123',
+      [Validators.required, Validators.minLength(8)],
+    ],
   });
 
   onSubmit(): void {

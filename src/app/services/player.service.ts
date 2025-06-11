@@ -1,6 +1,7 @@
 import { Injectable, signal, OnDestroy, inject, effect } from '@angular/core';
 import { AudioFile, AudioService } from './audio.service';
 import { environment } from '@environments/environment';
+import { LivekitService } from './livekit.service';
 
 // Claves para guardar el estado en localStorage
 const STORAGE_KEYS = {
@@ -21,6 +22,9 @@ export class PlayerService implements OnDestroy {
   private analyserNode: AnalyserNode;
   private dataArray: Uint8Array;
 
+  private broadcastDestination: MediaStreamAudioDestinationNode;
+  public isBroadcasting = signal(false);
+
   private currentAudioBuffer: AudioBuffer | null = null;
 
   // Gestión precisa del tiempo
@@ -29,7 +33,7 @@ export class PlayerService implements OnDestroy {
   private animationFrameId: number | null = null;
 
   private audioService = inject(AudioService);
-
+  private livekitService = inject(LivekitService);
   // --- Signals para la UI ---
   public state = signal<'playing' | 'paused' | 'stopped'>('stopped');
   public currentlyPlaying = signal<AudioFile | null>(null);
@@ -47,17 +51,44 @@ export class PlayerService implements OnDestroy {
     this.musicGainNode = this.audioContext.createGain();
     this.analyserNode = this.audioContext.createAnalyser();
 
+    this.broadcastDestination =
+      this.audioContext.createMediaStreamDestination();
+
     this.analyserNode.fftSize = 256;
     const bufferLength = this.analyserNode.frequencyBinCount;
     this.dataArray = new Uint8Array(bufferLength);
 
     this.musicGainNode.connect(this.audioContext.destination);
 
+    this.musicGainNode.connect(this.broadcastDestination);
+
     this.loadStateFromStorage();
 
     effect(() => {
       this.saveStateToStorage();
     });
+  }
+
+  // --- Métodos de transmisión en vivo ---
+  async startBroadcast(): Promise<void> {
+    if (this.isBroadcasting()) return;
+
+    this.livekitService.getToken().subscribe(async (token) => {
+      try {
+        await this.livekitService.connectToRoom(token);
+        // Obtenemos el stream de la mezcla final
+        const broadcastStream = this.broadcastDestination.stream;
+        await this.livekitService.publishAudio(broadcastStream);
+        this.isBroadcasting.set(true);
+      } catch (error) {
+        console.error('Error al iniciar la transmisión:', error);
+      }
+    });
+  }
+
+  stopBroadcast(): void {
+    this.livekitService.disconnect();
+    this.isBroadcasting.set(false);
   }
 
   // --- MÉTODOS PÚBLICOS DE CONTROL ---

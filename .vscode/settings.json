@@ -7,5 +7,6 @@
       "externalTemplate": true,
       "skipStyle": true
     }
-  }
+  },
+  "liveServer.settings.port": 5001
 }

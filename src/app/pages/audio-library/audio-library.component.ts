@@ -119,4 +119,12 @@ export class AudioLibraryComponent {
       });
     }
   }
+
+  toggleBroadcast(): void {
+    if (this.playerService.isBroadcasting()) {
+      this.playerService.stopBroadcast();
+    } else {
+      this.playerService.startBroadcast();
+    }
+  }
 }
